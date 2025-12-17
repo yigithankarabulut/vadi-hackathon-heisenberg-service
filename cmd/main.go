@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/yigithankarabulut/vadi-hackathon-heisenberg-service/consumer"
+	"github.com/yigithankarabulut/vadi-hackathon-heisenberg-service/pkg/config"
 	"github.com/yigithankarabulut/vadi-hackathon-heisenberg-service/pkg/logging"
 	"github.com/yigithankarabulut/vadi-hackathon-heisenberg-service/pkg/postgres"
 	"github.com/yigithankarabulut/vadi-hackathon-heisenberg-service/pkg/redis"
@@ -21,12 +23,21 @@ import (
 )
 
 func main() {
-	// Initialize logger
-	serverEnvironment := getEnv("SERVER_ENV", "production")
-	os.Setenv("SERVER_ENV", serverEnvironment)
+	serverEnvironment := os.Getenv("SERVER_ENV")
+	if serverEnvironment == "" {
+		if err := os.Setenv("SERVER_ENV", "prod"); err != nil {
+			log.Fatalf("Failed to set SERVER_ENV: %v", err)
+		}
+	}
+
+	cfg, err := config.Load(serverEnvironment)
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
 	logging.CreateLogger(
 		logging.SetLogLevelString(
-			getEnv("LOG_LEVEL", "info"),
+			cfg.LogLevel,
 		),
 	)
 
@@ -35,8 +46,8 @@ func main() {
 
 	// Initialize Redis client
 	redisConfig := redis.Config{
-		Addr:     getEnv("REDIS_ADDR", "89.47.113.24:6379"),
-		Password: getEnv("REDIS_PASSWORD", ""), // flightredispass
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
 		DB:       0,
 	}
 
@@ -48,12 +59,12 @@ func main() {
 
 	// Initialize PostgreSQL client
 	postgresConfig := postgres.Config{
-		Host:     getEnv("POSTGRES_HOST", "89.47.113.24"),
-		Port:     getEnv("POSTGRES_PORT", "5432"),
-		User:     getEnv("POSTGRES_USER", "rbac_admin"),
-		Password: getEnv("POSTGRES_PASSWORD", "rbac_pass"),
-		DBName:   getEnv("POSTGRES_DB", "fleetdb"),
-		SSLMode:  getEnv("POSTGRES_SSLMODE", "disable"),
+		Host:     cfg.PostgresHost,
+		Port:     cfg.PostgresPort,
+		User:     cfg.PostgresUser,
+		Password: cfg.PostgresPassword,
+		DBName:   cfg.PostgresDb,
+		SSLMode:  cfg.PostgresSSLMode,
 	}
 
 	db, err := postgres.NewClient(postgresConfig)
@@ -62,8 +73,8 @@ func main() {
 	}
 
 	// AutoMigrate models
-	autoMigrateEnabled := getEnv("AUTO_MIGRATE", "true")
-	if autoMigrateEnabled == "true" {
+	autoMigrateEnabled := cfg.AutoMigrate
+	if autoMigrateEnabled {
 		if err := postgres.AutoMigrate(db); err != nil {
 			logging.Fatal("Failed to run migrations", zap.Error(err))
 		}
@@ -82,15 +93,15 @@ func main() {
 	anomalyService := service.NewAnomalyService(thresholdService, geofenceService)
 
 	// Initialize consumer
-	streamKey := getEnv("REDIS_STREAM_KEY", "telemetry_stream")
-	consumerGroup := getEnv("REDIS_CONSUMER_GROUP", "heisenberg-workers")
-	consumerName := getEnv("REDIS_CONSUMER_NAME", fmt.Sprintf("heisenberg-worker/%s", getHostname()))
+	streamKey := cfg.RedisStreamKey
+	consumerGroup := cfg.RedisConsumerGroup
+	consumerName := fmt.Sprintf("heisenberg-worker/%s", getHostname())
 
 	streamConsumer := consumer.NewStreamConsumer(redisClient, streamKey, consumerGroup, consumerName)
 
 	// Initialize publisher
-	globalFeedChannel := getEnv("REDIS_PUBSUB_GLOBAL_FEED", "global_telemetry_feed")
-	alertFeedChannel := getEnv("REDIS_PUBSUB_ALERT_FEED", "alert_feed")
+	globalFeedChannel := cfg.RedisPubSubGlobalFeed
+	alertFeedChannel := cfg.RedisPubSubAlertFeed
 	feedPublisher := publisher.NewFeedPublisher(redisClient, globalFeedChannel, alertFeedChannel)
 
 	// Initialize worker service
@@ -107,9 +118,8 @@ func main() {
 
 	// Start HTTP server in a goroutine
 	go func() {
-		port := getEnv("SERVER_PORT", "1338")
-		logging.Info("Health check server running", zap.String("port", port))
-		if err := http.ListenAndServe(":"+port, nil); err != nil {
+		logging.Info("Health check server running", zap.String("port", cfg.Port))
+		if err := http.ListenAndServe(":"+cfg.Port, nil); err != nil {
 			logging.Fatal("HTTP server error", zap.Error(err))
 		}
 	}()
@@ -147,13 +157,6 @@ func main() {
 func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "OK")
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }
 
 func getHostname() string {

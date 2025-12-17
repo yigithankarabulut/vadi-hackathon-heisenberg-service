@@ -37,4 +37,3 @@ func (t *Telemetry) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
-

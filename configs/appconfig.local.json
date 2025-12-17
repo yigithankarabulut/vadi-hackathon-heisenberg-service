@@ -1,0 +1,19 @@
+{
+  "app_name": "vadi-hackathon-heisenberg-service",
+  "port": "1338",
+  "swagger_enabled": false,
+  "log_level": "info",
+  "redis_addr": "89.47.113.24:6379",
+  "redis_password": "",
+  "redis_stream_key": "telemetry_stream",
+  "redis_consumer_group": "heisenberg-workers",
+  "redis_pubsub_global_feed": "global_telemetry_feed",
+  "redis_pubsub_alert_feed": "alert_feed",
+  "postgres_host": "89.47.113.24",
+  "postgres_port": "5432",
+  "postgres_user": "rbac_admin",
+  "postgres_password": "rbac_pass",
+  "postgres_db": "fleetdb",
+  "postgres_sslmode": "disable",
+  "auto_migrate": false
+}
