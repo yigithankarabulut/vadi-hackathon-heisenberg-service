@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: heisenberg-service-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: heisenberg-service
+  template:
+    metadata:
+      labels:
+        app: heisenberg-service
+    spec:
+      containers:
+      - name: heisenberg-service-container
+        image: yigithankarabulut/vadi-hackathon-heisenberg-service:latest
+        ports:
+        - containerPort: 1338
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 1338
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 1338
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
