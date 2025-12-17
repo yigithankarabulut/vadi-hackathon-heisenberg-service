@@ -3,17 +3,42 @@
   "port": "1338",
   "swagger_enabled": false,
   "log_level": "info",
-  "redis_addr": "89.47.113.24:6379",
+  "redis_addr": "{redis_addr}",
   "redis_password": "",
-  "redis_stream_key": "telemetry_stream",
-  "redis_consumer_group": "heisenberg-workers",
-  "redis_pubsub_global_feed": "global_telemetry_feed",
-  "redis_pubsub_alert_feed": "alert_feed",
-  "postgres_host": "89.47.113.24",
-  "postgres_port": "5432",
-  "postgres_user": "rbac_admin",
-  "postgres_password": "rbac_pass",
-  "postgres_db": "fleetdb",
+  "redis_stream_key": "{redis_stream_key}",
+  "redis_consumer_group": "{redis_consumer_group}",
+  "redis_pubsub_global_feed": "{redis_pubsub_global_feed}",
+  "redis_pubsub_alert_feed": "{redis_pubsub_alert_feed}",
+  "postgres_host": "{postgres_host}",
+  "postgres_port": "{postgres_port}",
+  "postgres_user": "{postgres_user}",
+  "postgres_password": "{postgres_password}",
+  "postgres_db": "{postgres_db}",
   "postgres_sslmode": "disable",
-  "auto_migrate": false
+  "auto_migrate": false,
+  "vault": {
+      "enabled": true,
+      "tokenFile": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+      "debugMode": {
+        "enabled": true,
+        "cluster": "temp-cluster",
+        "token": "token-placeholder"
+      },
+      "secrets": [
+        {
+          "path": "vadi-hackathon-heisenberg-service",
+          "keys": [ 
+            "REDIS_STREAM_KEY:redis_stream_key",
+            "REDIS_CONSUMER_GROUP:redis_consumer_group",
+            "REDIS_PUBSUB_GLOBAL_FEED:redis_pubsub_global_feed",
+            "REDIS_PUBSUB_ALERT_FEED:redis_pubsub_alert_feed",
+            "POSTGRES_HOST:postgres_host",
+            "POSTGRES_PORT:postgres_port",
+            "POSTGRES_USER:postgres_user",
+            "POSTGRES_PASSWORD:postgres_password",
+            "POSTGRES_DB:postgres_db"
+          ]
+        }
+      ]
+    }
 }
